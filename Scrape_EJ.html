@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<!--
+
+Read 'webPage' and show the news items based on 'selector' in a selection
+list. Head lines containing 'ignore' words do not make it into the list.
+For each list-item, when selected, show the article.
+
+The source webPage and Articles are not parsed by the browser so loading ads
+and running source JavaScript is prevented.
+
+<script src="jquery.js"></script>
+
+-->
+
+<head>
+
+<meta charset="utf-8">
+<title>EJ Scraper</title>
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+
+<link rel="icon" type="image/x-icon" href="http://1.gravatar.com/blavatar/9db188f8de0c78297ec188789805e471?s=32" sizes="16x16">
+
+
+<script>
+var webPage = "http://edmontonjournal.com/category/news/local-news";
+
+//window.origin = webPage;
+//document.domain = "edmontonjournal.com";
+var selectors = [ ".entry-title", "a[target|='_self']" ];  // Second one is used to find: target="_self" in 'a' tag.
+var ignore = ["NHL", "oilers", "hockey", "McDavid", "Eskimo", "MVP"];   // Case insensititive topics that will not make it in the article list.
+
+// Allow-Control-Allow-Origin: *  // Chrome only ?
+// Access-Control-Allow-Origin: *
+// Brave: Failed to load http://edmontonjournal.com/category/news/local-news:
+//  No 'Access-Control-Allow-Origin' header is present on the requested resource. Origin 'null' is therefore not allowed access.
+// request from a file url gives origin null. Origin is send in Brave but not in Safari.
+
+$(document).ready(function() {
+
+  $.ajax({
+  type: 'GET',
+  url: webPage,
+
+  // The 'contentType' property sets the 'Content-Type' header.
+  // The JQuery default for this property is
+  // 'application/x-www-form-urlencoded; charset=UTF-8', which does not trigger
+  // a preflight. If you set this value to anything other than
+  // application/x-www-form-urlencoded, multipart/form-data, or text/plain,
+  // you will trigger a preflight request.
+  contentType: 'text/plain',
+
+  xhrFields: {
+    // The 'xhrFields' property sets additional fields on the XMLHttpRequest.
+    // This can be used to set the 'withCredentials' property.
+    // Set the value to 'true' if you'd like to pass cookies to the server.
+    // If this is enabled, your server must respond with the header
+    // 'Access-Control-Allow-Credentials: true'.
+    withCredentials: false
+  },
+
+  headers: {
+    // Set any custom headers here.
+    // If you set any non-simple headers, your server must include these
+    // headers in the 'Access-Control-Allow-Headers' response header.
+    // Allow-Control-Allow-Origin: *
+  },
+
+  success: function(data) {     // 3) function.
+    // debug:
+    document.myHTML = data;
+    //document.myHTML = $.parseHTML(data, null, false); // jQuery(document.myHTML).find(".entry-title")
+
+    var articles = jQuery(data).find(selectors[0]);
+    for (var i = 1; i < selectors.length; i++) {
+      articles = jQuery(articles).find(selectors[i]);
+    }
+
+    for (var i = 0; i < articles.length; i++) {
+      // debug: article = jQuery(document.myHTML).find(".entry-title").get(i).getElementsByTagName("a")[0];
+      var article = articles.get(i);
+      var headLine = article.innerText.trim();
+      var show = true;
+      for (var j = 0; j < ignore.length; j++) {
+        var re = new RegExp(ignore[j], "gi");
+        if (headLine.search(re) > -1 && show) {
+          show = false;
+        }
+      }
+      // Only put articles in the list that do not contain 'ignore' words.
+      if (show) {
+        $( "ol" ).append("<li onclick=\"getArticle(\'" + article.getAttribute("href") + "\', this);\">" + headLine + "</li>");
+      }
+    }  // articles
+  },  // function()
+
+  error: function() {
+    // Here's where you handle an error response.
+    // Note that if the error was due to a CORS issue,
+    // this function will still fire, but there won't be any additional
+    // information about the error.
+  }
+});
+  /*
+  $.get(webPage,             // 1) url. Best method? May return cached data. (Load, Post?).
+        //{Origin:"http://edmontonjournal.com"},  // 2) server data added as args to 1).
+        function(data) {     // 3) function.
+          // debug: document.myHTML = $.parseHTML(data, null, false); // jQuery(document.myHTML).find(".entry-title")
+          var articles = jQuery(data).find(selectors[0]);
+          for (var i = 1; i < selectors.length; i++) {
+            articles = jQuery(articles).find(selectors[i]);
+          }
+
+          for (var i = 0; i < articles.length; i++) {
+            // debug: article = jQuery(document.myHTML).find(".entry-title").get(i).getElementsByTagName("a")[0];
+            var article = articles.get(i);
+            var headLine = article.innerText.trim();
+            var show = true;
+            for (var j = 0; j < ignore.length; j++) {
+              var re = new RegExp(ignore[j], "gi");
+              if (headLine.search(re) > -1 && show) {
+                show = false;
+              }
+            }
+            // Only put articles in the list that do not contain 'ignore' words.
+            if (show) {
+              $( "ol" ).append("<li onclick=\"getArticle(\'" + article.getAttribute("href") + "\', this);\">" + headLine + "</li>");
+            }
+          }  // articles
+        },  // function()
+        "html"               // 4) Datatype.
+  ); // get()
+  */
+});  // ready()
+</script>
+
+</head>
+
+<body>
+
+<div id="news-list">
+  <h2>EJ Local News Item List</h2>
+  <ol></ol>
+</div>
+
+<script>
+  var pageParts = [ ".entry-content", ".comments-area" ];
+  var remove = [ "nav", "script", "form", "iframe", ".article-actions" ];
+
+  function getArticle(value, object) {
+    object.style.color = "blue";  // Clicked list-items becomes and stays blue.
+    document.getElementById("news-item").click();  // focus...
+
+    $.get(value,               // 1) url. Best method? May return cached data. (Load, Post?).
+          function(data) {     // 3) function.
+            var article = jQuery(data).find(pageParts[0]);  // debug: document.myHTML = article;
+
+            for (var i = 0; i < remove.length; i++) {
+              article.find(remove[i]).remove();             // Remove some stuff before presenting.
+            }
+
+            $( ".display" ).empty();  // Clear the article space for displaing the (next) article.
+            $( ".display" ).append(article);
+          },  // function()
+          "html"               // 4) Datatype.
+    );  // get()
+
+  }  // getArticle ()
+</script>
+
+<a id="news-item" href="#display">EJ Local News Item</a>
+<div id="display" class="display" style="max-width:720px;display: block;margin-left: 10%"></div>
+
+</body>
+</html>
